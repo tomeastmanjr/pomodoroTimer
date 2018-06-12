@@ -1,13 +1,22 @@
 package com.example.tomeastman.pomodorotimer;
 
+import android.content.ContentValues;
+import android.content.DialogInterface;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 
 import android.os.CountDownTimer;
+import android.util.Log;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -15,6 +24,8 @@ import android.widget.Toast;
 import java.util.ArrayList;
 
 public class MainActivity extends AppCompatActivity {
+
+    private static final String TAG = "MainActivity";
 
     CountDownTimer mCountDownTimer;
     long mRemainingTimeInMillis;
@@ -24,6 +35,9 @@ public class MainActivity extends AppCompatActivity {
     TextView mTextView;
     ListView mListView;
     Boolean mIsPaused = false;
+    private TaskDbHelper mHelper;
+    private ListView mListViewTask;
+    private ArrayAdapter<String> mAdapter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -42,31 +56,12 @@ public class MainActivity extends AppCompatActivity {
         mStopButton.setEnabled(false);
 
 
-        // Create a sample list of tasks
-        ArrayList<String> task_list = new ArrayList<>();
+        // initialize the helper
+        mHelper = new TaskDbHelper(this);
+        mListViewTask = findViewById(R.id.listView_tasks);
 
-        // Populate the array with sample data
-        task_list.add("Task 1");
-        task_list.add("Task 2");
-        task_list.add("Task 3");
-        task_list.add("Task 4");
-        task_list.add("Task 5");
-        task_list.add("Task 6");
-        task_list.add("Task 7");
-        task_list.add("Task 8");
-        task_list.add("Task 9");
-        task_list.add("Task 10");
-        task_list.add("Task 11");
-
-        // Create a simple ArrayAdapter from our ArrayList
-        ArrayAdapter<String> stringArrayAdapter = new ArrayAdapter<>(
-                this, // context of where this adapter will be used in this activity
-                R.layout.list_item_task, // reference to the Layout file created to build each item in the ListView
-                R.id.textView_task, // reference to the specific TextView inside the Layout file
-                task_list); // the ArrayList to use
-
-        // set the adapter to the listView
-        mListView.setAdapter(stringArrayAdapter);
+        // update the UI
+        updateUI();
 
         // set up an EventListener to display a Toast when clicking on an item in the listView
         mListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
@@ -141,6 +136,113 @@ public class MainActivity extends AppCompatActivity {
 
             }
         });
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        // Inflate the menu; this adds items to the action bar if it is present.
+        getMenuInflater().inflate(R.menu.menu_main, menu);
+        return super.onCreateOptionsMenu(menu);
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        switch (item.getItemId()) {
+            case R.id.action_add_task:
+                Log.d(TAG, "Add a new task");
+
+                // show a popup adding a new task
+                final EditText taskEditText = new EditText(this);
+                AlertDialog dialog = new AlertDialog.Builder(this)
+                        .setTitle("Add a new task")
+                        .setMessage("What do you want to do next?")
+                        .setView(taskEditText)
+                        .setPositiveButton("Add", new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialogInterface, int i) {
+                                String task = String.valueOf(taskEditText.getText());
+                                Log.d(TAG, "Task to add: " + task);
+
+                                // perform db work
+                                SQLiteDatabase db = mHelper.getWritableDatabase();
+                                ContentValues values = new ContentValues();
+                                values.put(TaskContract.TaskEntry.COL_TASK_TITLE, task);
+                                db.insertWithOnConflict(TaskContract.TaskEntry.TABLE,
+                                        null,
+                                        values,
+                                        SQLiteDatabase.CONFLICT_REPLACE);
+                                db.close();
+
+                                // update the UI
+                                updateUI();
+
+                            }
+                        })
+                        .setNegativeButton("Cancel", null)
+                        .create();
+                dialog.show();
+
+                return true;
+
+            default:
+                return super.onOptionsItemSelected(item);
+        }
+    }
+
+    /*
+        Custom function to update the UI
+     */
+    private void updateUI() {
+
+        // Create a list to store the tasks
+        ArrayList<String> taskList = new ArrayList<>();
+
+        // perform db work
+        // get the data stored in our db
+        SQLiteDatabase db = mHelper.getReadableDatabase();
+        Cursor cursor = db.query(TaskContract.TaskEntry.TABLE,
+                new String[]{TaskContract.TaskEntry._ID,
+                        TaskContract.TaskEntry.COL_TASK_TITLE},
+                null, null, null, null, null);
+        while (cursor.moveToNext()) {
+            int idx = cursor.getColumnIndex(TaskContract.TaskEntry.COL_TASK_TITLE);
+            Log.d(TAG, "Task: " + cursor.getString(idx));
+            taskList.add(cursor.getString(idx));
+        }
+
+        // handle data
+        if (mAdapter == null) {
+            mAdapter = new ArrayAdapter<>(this,
+                    R.layout.list_item_task, // what view to use for the items
+                    R.id.textView_taskTitle, // where to put the string of data
+                    taskList); // collection to use
+            mListViewTask.setAdapter(mAdapter);
+        } else {
+            mAdapter.clear();
+            mAdapter.addAll(taskList);
+            mAdapter.notifyDataSetChanged();
+        }
+
+        // close out the db
+        cursor.close();
+        db.close();
+
+    }
+
+    // delete the task from the db
+    public void deleteTask(View view) {
+
+        View parent = (View) view.getParent();
+        TextView textViewTask = parent.findViewById(R.id.textView_taskTitle);
+        String task = String.valueOf(textViewTask.getText());
+        SQLiteDatabase db = mHelper.getWritableDatabase();
+        db.delete(TaskContract.TaskEntry.TABLE,
+                TaskContract.TaskEntry.COL_TASK_TITLE + " = ?",
+                new String[]{task});
+        db.close();
+        updateUI();
+
+
     }
 
     private void startCountDownTimer() {
