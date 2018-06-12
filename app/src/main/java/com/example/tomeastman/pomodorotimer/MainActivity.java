@@ -1,9 +1,11 @@
 package com.example.tomeastman.pomodorotimer;
 
+import android.animation.ObjectAnimator;
 import android.content.ContentValues;
 import android.content.DialogInterface;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
+import android.os.Handler;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -13,13 +15,18 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.animation.DecelerateInterpolator;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ListView;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import android.content.res.Resources;
+import android.graphics.drawable.Drawable;
 
 import java.util.ArrayList;
 
@@ -35,9 +42,15 @@ public class MainActivity extends AppCompatActivity {
     TextView mTextView;
     ListView mListView;
     Boolean mIsPaused = false;
-    private TaskDbHelper mHelper;
-    private ListView mListViewTask;
-    private ArrayAdapter<String> mAdapter;
+    TaskDbHelper mHelper;
+    ListView mListViewTask;
+    ArrayAdapter<String> mAdapter;
+
+    // Progress bar stuff
+    int pStatus = 0;
+    private Handler handler = new Handler();
+    TextView tv;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -59,6 +72,50 @@ public class MainActivity extends AppCompatActivity {
         // initialize the helper
         mHelper = new TaskDbHelper(this);
         mListViewTask = findViewById(R.id.listView_tasks);
+
+        // progress bar stuff
+        Resources res = getResources();
+        Drawable drawable = res.getDrawable(R.drawable.circular_progressbar);
+        final ProgressBar mProgress = (ProgressBar) findViewById(R.id.circularProgressbar);
+        mProgress.setProgress(0);   // Main Progress
+        mProgress.setSecondaryProgress(100); // Secondary Progress
+        mProgress.setMax(100); // Maximum Progress
+        mProgress.setProgressDrawable(drawable);
+
+//        ObjectAnimator animation = ObjectAnimator.ofInt(mProgress, "progress", 0, 100);
+//        animation.setDuration(50000);
+//        animation.setInterpolator(new DecelerateInterpolator());
+//        animation.start();
+
+        tv = (TextView) findViewById(R.id.tv);
+        new Thread(new Runnable() {
+
+            @Override
+            public void run() {
+                // TODO Auto-generated method stub
+                while (pStatus < 100) {
+                    pStatus += 1;
+
+                    handler.post(new Runnable() {
+
+                        @Override
+                        public void run() {
+                            // TODO Auto-generated method stub
+                            mProgress.setProgress(pStatus);
+                            tv.setText(pStatus + "%");
+
+                        }
+                    });
+                    try {
+                        // Sleep for 200 milliseconds.
+                        // Just to display the progress slowly
+                        Thread.sleep(200); //thread will take approx 3 seconds to finish
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        }).start();
 
         // update the UI
         updateUI();
