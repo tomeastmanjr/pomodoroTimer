@@ -1,36 +1,55 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/linearLayout_container"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
     tools:context=".MainActivity">
 
     <LinearLayout
+        android:id="@+id/linearLayout_break"
         android:layout_width="match_parent"
-        android:layout_height="250dp"
-        android:orientation="horizontal">
+        android:layout_height="match_parent"
+        android:orientation="horizontal"
+        android:visibility="gone">
 
         <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
             xmlns:tools="http://schemas.android.com/tools"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:background="#000"
             tools:context=".MainActivity">
 
             <TextView
-                android:id="@+id/textView_begin"
+                android:id="@+id/textView_take"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_alignParentTop="true"
                 android:layout_centerHorizontal="true"
-                android:text="To Begin"
-                android:textColor="#00FF00"
-                android:textSize="40sp"/>
+                android:text="Take"
+                android:textSize="40sp" />
+
+            <TextView
+                android:id="@+id/textView_a"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_below="@+id/textView_take"
+                android:layout_centerHorizontal="true"
+                android:text="A"
+                android:textSize="40sp" />
+
+            <TextView
+                android:id="@+id/textView_break"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_below="@+id/textView_a"
+                android:layout_centerHorizontal="true"
+                android:text="Break"
+                android:textSize="40sp" />
 
             <ProgressBar
-                android:id="@+id/circularProgressbarTask"
+                android:id="@+id/circularProgressbarBreak"
                 style="?android:attr/progressBarStyleHorizontal"
                 android:layout_width="250dp"
                 android:layout_height="250dp"
@@ -48,7 +67,7 @@
                 android:background="@drawable/whitecircle" />
 
             <TextView
-                android:id="@+id/textView_percent1"
+                android:id="@+id/textView_percentBreak"
                 android:layout_width="250dp"
                 android:layout_height="250dp"
                 android:layout_centerInParent="true"
@@ -58,13 +77,12 @@
                 android:textSize="20sp" />
 
             <TextView
-                android:id="@+id/textView_time"
+                android:id="@+id/textView_timeBreak"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_alignParentBottom="true"
+                android:layout_below="@+id/circularProgressbarBreak"
                 android:layout_centerHorizontal="true"
                 android:text="Press Start"
-                android:textColor="#00FF00"
                 android:textSize="40sp" />
 
         </RelativeLayout>
@@ -72,33 +90,104 @@
     </LinearLayout>
 
     <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:background="#000" >
-
-        <Button
-            android:id="@+id/button_start"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="Start" />
-
-        <Button
-            android:id="@+id/button_stop"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="Stop" />
-    </LinearLayout>
-
-    <ListView
-        android:id="@+id/listView_tasks"
+        android:id="@+id/linearLayout_task"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="#000"
-        android:divider="@android:color/darker_gray"
-        android:dividerHeight="1dp"
-        android:padding="8dp" />
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="250dp"
+            android:orientation="horizontal">
+
+            <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+                xmlns:tools="http://schemas.android.com/tools"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="#000"
+                tools:context=".MainActivity">
+
+                <TextView
+                    android:id="@+id/textView_begin"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_centerHorizontal="true"
+                    android:text="To Begin"
+                    android:textColor="#00FF00"
+                    android:textSize="40sp" />
+
+                <ProgressBar
+                    android:id="@+id/circularProgressbarTask"
+                    style="?android:attr/progressBarStyleHorizontal"
+                    android:layout_width="250dp"
+                    android:layout_height="250dp"
+                    android:layout_centerInParent="true"
+                    android:indeterminate="false"
+                    android:max="100"
+                    android:progress="50"
+                    android:progressDrawable="@drawable/circular_progressbar"
+                    android:secondaryProgress="100" />
+
+                <ImageView
+                    android:layout_width="100dp"
+                    android:layout_height="100dp"
+                    android:layout_centerInParent="true"
+                    android:background="@drawable/whitecircle" />
+
+                <TextView
+                    android:id="@+id/textView_percentTask"
+                    android:layout_width="250dp"
+                    android:layout_height="250dp"
+                    android:layout_centerInParent="true"
+                    android:gravity="center"
+                    android:text="Ready"
+                    android:textColor="@color/colorPrimaryDark"
+                    android:textSize="20sp" />
+
+                <TextView
+                    android:id="@+id/textView_time"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentBottom="true"
+                    android:layout_centerHorizontal="true"
+                    android:text="Press Start"
+                    android:textColor="#00FF00"
+                    android:textSize="40sp" />
+
+            </RelativeLayout>
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="#000"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/button_start"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Start" />
+
+            <Button
+                android:id="@+id/button_stop"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Stop" />
+        </LinearLayout>
+
+        <ListView
+            android:id="@+id/listView_tasks"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="#000"
+            android:divider="@android:color/darker_gray"
+            android:dividerHeight="1dp"
+            android:padding="8dp" />
+
+    </LinearLayout>
 
 </LinearLayout>
