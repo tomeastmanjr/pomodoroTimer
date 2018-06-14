@@ -5,7 +5,6 @@ import android.content.ContentValues;
 import android.content.DialogInterface;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
-import android.os.Handler;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -29,6 +28,7 @@ import android.content.res.Resources;
 import android.graphics.drawable.Drawable;
 
 import java.util.ArrayList;
+import java.util.concurrent.TimeUnit;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -36,20 +36,19 @@ public class MainActivity extends AppCompatActivity {
 
     CountDownTimer mCountDownTimer;
     long mRemainingTimeInMillis;
+    long mTimeSoFar;
     Button mStartButton;
-    Button mPauseButton;
     Button mStopButton;
-    TextView mTextView;
-    ListView mListView;
-    Boolean mIsPaused = false;
+    TextView mTextViewTime;
+    TextView mTextViewBegin;
     TaskDbHelper mHelper;
     ListView mListViewTask;
     ArrayAdapter<String> mAdapter;
 
     // Progress bar stuff
-    int pStatus = 0;
-    private Handler handler = new Handler();
-    TextView tv;
+    TextView mTV;
+    ProgressBar mProgress;
+    ObjectAnimator mAnimation;
 
 
     @Override
@@ -59,69 +58,32 @@ public class MainActivity extends AppCompatActivity {
 
         // locate our views
         mStartButton = findViewById(R.id.button_start);
-        mPauseButton = findViewById(R.id.button_pause);
         mStopButton = findViewById(R.id.button_stop);
-        mTextView = findViewById(R.id.textView_time);
-        mListView = findViewById(R.id.listView_tasks);
+        mTextViewTime = findViewById(R.id.textView_time);
+        mTextViewBegin = findViewById(R.id.textView_begin);
+        mListViewTask = findViewById(R.id.listView_tasks);
 
-        // disable the pause and stop buttons at startup
-        mPauseButton.setEnabled(false);
+        // disable the stop button at startup
         mStopButton.setEnabled(false);
-
 
         // initialize the helper
         mHelper = new TaskDbHelper(this);
-        mListViewTask = findViewById(R.id.listView_tasks);
 
         // progress bar stuff
         Resources res = getResources();
         Drawable drawable = res.getDrawable(R.drawable.circular_progressbar);
-        final ProgressBar mProgress = (ProgressBar) findViewById(R.id.circularProgressbar);
+        mProgress = findViewById(R.id.circularProgressbarTask);
+        mTV = findViewById(R.id.textView_percent1);
         mProgress.setProgress(0);   // Main Progress
         mProgress.setSecondaryProgress(100); // Secondary Progress
         mProgress.setMax(100); // Maximum Progress
         mProgress.setProgressDrawable(drawable);
 
-//        ObjectAnimator animation = ObjectAnimator.ofInt(mProgress, "progress", 0, 100);
-//        animation.setDuration(50000);
-//        animation.setInterpolator(new DecelerateInterpolator());
-//        animation.start();
-
-        tv = (TextView) findViewById(R.id.tv);
-        new Thread(new Runnable() {
-
-            @Override
-            public void run() {
-                // TODO Auto-generated method stub
-                while (pStatus < 100) {
-                    pStatus += 1;
-
-                    handler.post(new Runnable() {
-
-                        @Override
-                        public void run() {
-                            // TODO Auto-generated method stub
-                            mProgress.setProgress(pStatus);
-                            tv.setText(pStatus + "%");
-
-                        }
-                    });
-                    try {
-                        // Sleep for 200 milliseconds.
-                        // Just to display the progress slowly
-                        Thread.sleep(200); //thread will take approx 3 seconds to finish
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
-                }
-            }
-        }).start();
-
         // update the UI
         updateUI();
 
         // set up an EventListener to display a Toast when clicking on an item in the listView
-        mListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+        mListViewTask.setOnItemClickListener(new AdapterView.OnItemClickListener() {
 
             // This is the callback method that gets called when the user touches an item in the list
             @Override
@@ -143,58 +105,44 @@ public class MainActivity extends AppCompatActivity {
 
                 // enable/disable our buttons accordingly
                 mStartButton.setEnabled(false);
-                mPauseButton.setEnabled(true);
                 mStopButton.setEnabled(true);
 
                 // change the Start button text
                 mStartButton.setText("Resume");
 
-            }
-        });
-
-        // listen for clicks on the Pause button and perform actions
-        mPauseButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-
-                // save that the timer is paused
-                mIsPaused = true;
-
-                // enable/disable our buttons accordingly
-                mStartButton.setEnabled(true);
-                mPauseButton.setEnabled(false);
-
-                // Cancel the existing timer
-                mCountDownTimer.cancel();
+                // update begin text
+                mTextViewBegin.setText("");
 
             }
         });
+
 
         // listen for clicks on the Stop button and perform actions
         mStopButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
 
-                // reset the IsPaused flag
-                mIsPaused = false;
-
                 // enable/disable our buttons accordingly
                 mStartButton.setEnabled(true);
-                mPauseButton.setEnabled(false);
                 mStopButton.setEnabled(false);
 
                 // change the Start button text
                 mStartButton.setText("Start");
 
-                // Cancel the existing timer
+                // Cancel the existing timer and animation
                 mCountDownTimer.cancel();
+                mAnimation.end();
 
-                mTextView.setText("To begin, press Start");
+                // update texts
+                mTextViewBegin.setText("To Begin");
+                mTextViewTime.setText("Press Start");
+                mTV.setText("Ready");
 
             }
         });
     }
 
+    // Set the menu
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         // Inflate the menu; this adds items to the action bar if it is present.
@@ -202,6 +150,7 @@ public class MainActivity extends AppCompatActivity {
         return super.onCreateOptionsMenu(menu);
     }
 
+    // Handle creating a new task
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
@@ -246,15 +195,12 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    /*
-        Custom function to update the UI
-     */
+    // Custom function to update the UI
     private void updateUI() {
 
         // Create a list to store the tasks
         ArrayList<String> taskList = new ArrayList<>();
 
-        // perform db work
         // get the data stored in our db
         SQLiteDatabase db = mHelper.getReadableDatabase();
         Cursor cursor = db.query(TaskContract.TaskEntry.TABLE,
@@ -299,32 +245,54 @@ public class MainActivity extends AppCompatActivity {
         db.close();
         updateUI();
 
-
     }
 
+    // Start the countdown timer
     private void startCountDownTimer() {
 
-        long time = ActiveData.TimeInMilliseconds;
 
-        if (mIsPaused) {
-            time = mRemainingTimeInMillis;
-            mIsPaused = false;
-        }
 
         // Create a new Countdown timer
-        mCountDownTimer = new CountDownTimer(time, 1000) {
+        mCountDownTimer = new CountDownTimer(ActiveData.TimeInMilliseconds, 1000) {
 
             public void onTick(long millisUntilFinished) {
-                mTextView.setText("seconds remaining: " + millisUntilFinished / 1000);
+                mTimeSoFar = ActiveData.TimeInMilliseconds - millisUntilFinished;
+//                mTextViewTime.setText("seconds remaining: " + millisUntilFinished / 1000);
+
+                //hh:mm:ss
+                String time = String.format("%02d:%02d:%02d",
+                        TimeUnit.MILLISECONDS.toHours(millisUntilFinished),
+                        TimeUnit.MILLISECONDS.toMinutes(millisUntilFinished) -
+                                TimeUnit.HOURS.toMinutes(TimeUnit.MILLISECONDS.toHours(millisUntilFinished)),
+                        TimeUnit.MILLISECONDS.toSeconds(millisUntilFinished) -
+                                TimeUnit.MINUTES.toSeconds(TimeUnit.MILLISECONDS.toMinutes(millisUntilFinished)));
+
+                mTextViewTime.setText(time);
+
+
+                float percent = (((float) mTimeSoFar) / ((float) ActiveData.TimeInMilliseconds) * 100);
+                mTV.setText(Math.round(percent) + "%");
                 mRemainingTimeInMillis = millisUntilFinished;
+
             }
 
             public void onFinish() {
-                mTextView.setText("done!");
-                mPauseButton.setEnabled(false);
+                mTextViewTime.setText("Done!");
+                mTV.setText("100%");
+                mStartButton.setEnabled(true);
                 mStopButton.setEnabled(false);
+
+                mStartButton.setText("Start");
             }
         }.start();
+
+        mAnimation = new ObjectAnimator();
+        mAnimation = ObjectAnimator.ofInt(mProgress, "progress", 0, 100);
+        mAnimation.setDuration(ActiveData.TimeInMilliseconds);
+        // TODO: Figure if can do anything but accelerate and decelerate
+        // For now, using decelerate for motivational reasons
+        mAnimation.setInterpolator(new DecelerateInterpolator());
+        mAnimation.start();
 
     }
 }
